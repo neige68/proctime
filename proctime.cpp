@@ -84,7 +84,7 @@ void help(const boost::program_options::options_description& opt)
 {
     version();
     cout << endl;
-    cout << "書式: proctime {オプション} コマンドライン ..." << endl << endl;
+    cout << "書式: proctime {オプション} [--] コマンドライン ..." << endl << endl;
     cout << "コマンドラインを実行して、時間を計測・表示し、終了時に音を鳴らします" << endl << endl;
     ostringstream oss;
     oss << opt;
