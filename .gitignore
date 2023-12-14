@@ -1,0 +1,12 @@
+# .gitignore
+build/
+secret/
+private/
+*~
+*.bak
+.\#*
+\#*
+TAGS
+BROWSE
+files.txt
+*.aps
