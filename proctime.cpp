@@ -41,6 +41,27 @@ filesystem::path GetKnownFolderPath(REFKNOWNFOLDERID rfid, DWORD dwFlags = 0, HA
     return result;
 }
 
+/// GetLastError の値を対応するメッセージに変換する
+string ErrorMessage(DWORD id, DWORD dwLanguageId = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT))
+{
+    char* buf = 0;
+    FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM
+                  | FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_MAX_WIDTH_MASK, 
+                  0, id, dwLanguageId, (LPTSTR)&buf, 1, 0);
+    string result(buf ? buf : "");
+    LocalFree(buf);
+    return result;
+}
+
+/// バックグラウンド処理モードを開始
+void BeginBackgroundProcessMode()
+{
+    if (!SetPriorityClass(GetCurrentProcess(), PROCESS_MODE_BACKGROUND_BEGIN)) { // error
+        cerr << "ERROR: SetPriorityClass(PROCESS_MODE_BACKGROUND_BEGIN): " << ErrorMessage(GetLastError()) << endl;
+        cerr << "INFO: 続行します" << endl;
+    }
+}
+
 //------------------------------------------------------------
 
 /// バージョン出力
@@ -199,6 +220,7 @@ int main(int argc, char** argv)
             ("timeout,T", po::value<int>()->default_value(1000), "wav タイムアウト[ミリ秒]")
             ("list,L", "wav ファイルリスト表示")
             ("wav-file,W", po::value<vector<string>>(), "wav ファイル")
+            ("background-mode,B", "リソーススケジュールの優先度を下げる")
             ;
         po::options_description opt("オプション");
         opt.add(visible).add(hidden);
@@ -217,6 +239,12 @@ int main(int argc, char** argv)
             show_list();
             return 0;
         }
+        if (vm.count("command-args") == 0) {
+            help(visible);
+            return 0;
+        }
+        if (vm.count("background-mode"))
+            BeginBackgroundProcessMode();
         // コマンドと引数を組み立てる
         vector<const char*> args;
         for (const auto& str : vm["command-args"].as<vector<string>>())

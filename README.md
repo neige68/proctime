@@ -12,6 +12,7 @@
   -T [ --timeout ] arg (=1000) wav タイムアウト[ミリ秒]
   -L [ --list ]                wav ファイルリスト表示
   -W [ --wav-file ] arg        wav ファイル
+  -B [ --background-mode ]     リソーススケジュールの優先度を下げる
 
 wav ファイルは複数指定しても存在する最初のファイルのみを再生します
 </pre>
