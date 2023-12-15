@@ -21,12 +21,18 @@
 
 using namespace std;
 
-//------------------------------------------------------------
+//============================================================
+//
+// global
+//
 
 /// バージョン
 const wchar_t* str_version = L"0.00";
 
-//------------------------------------------------------------
+//============================================================
+//
+// Win32 API の拡張
+//
 
 /// 既知のフォルダーの完全パスを取得
 filesystem::path GetKnownFolderPath(REFKNOWNFOLDERID rfid, DWORD dwFlags = 0, HANDLE hToken = 0)
@@ -62,6 +68,17 @@ void BeginBackgroundProcessMode()
     }
 }
 
+/// Windows Media フォルダパス
+filesystem::path GetWindowsMediaPath()
+{
+    return GetKnownFolderPath(FOLDERID_Windows) / "Media";
+}
+
+//============================================================
+//
+// C/C++ Library の拡張
+//
+
 /// 環境変数の値の取得
 wstring getenv_wstring(const wstring& name)
 {
@@ -85,42 +102,10 @@ wstring to_wstring(const string& str)
     return filesystem::path(str.c_str()).wstring();
 }
 
-//------------------------------------------------------------
-
-/// バージョン出力
-void version()
-{
-    wcout << L"proctime";
-#if defined(_WIN64)
-    wcout << L" x64";
-#else        
-    wcout << L" x86";
-#endif
-#if !defined(NDEBUG)
-    wcout << L" Debug";
-#endif
-    wcout << L" Version " << str_version << endl;
-}
-
-/// ヘルプメッセージ出力
-void help(const boost::program_options::options_description& opt)
-{
-    version();
-    wcout << endl;
-    wcout << L"書式: proctime {オプション} [--] コマンドライン ..." << endl << endl;
-    wcout << L"コマンドラインを実行して、時間を計測・表示し、終了時に音を鳴らします" << endl << endl;
-    ostringstream oss;
-    oss << opt;
-    wcout << to_wstring(oss.str()) << endl;
-    wcout << L"環境変数 PROCTIME にもオプションを指定できます" << endl << endl;
-    wcout << L"wav ファイルは複数指定しても存在する最初のファイルのみを再生します" << endl << endl;
-}
-
-/// Windows Media フォルダパス
-filesystem::path GetWindowsMediaPath()
-{
-    return GetKnownFolderPath(FOLDERID_Windows) / "Media";
-}
+//============================================================
+//
+// ユーティリティ
+//
 
 /// 文字列を区切り文字 c で分解
 vector<wstring> split(const wstring& str, wchar_t c)
@@ -154,6 +139,40 @@ int GetTerminalCols()
         }
     }
     return 80;
+}
+
+//============================================================
+//
+// アプリ特有
+//
+
+/// バージョン出力
+void version()
+{
+    wcout << L"proctime";
+#if defined(_WIN64)
+    wcout << L" x64";
+#else        
+    wcout << L" x86";
+#endif
+#if !defined(NDEBUG)
+    wcout << L" Debug";
+#endif
+    wcout << L" Version " << str_version << endl;
+}
+
+/// ヘルプメッセージ出力
+void help(const boost::program_options::options_description& opt)
+{
+    version();
+    wcout << endl;
+    wcout << L"書式: proctime {オプション} [--] コマンドライン ..." << endl << endl;
+    wcout << L"コマンドラインを実行して、時間を計測・表示し、終了時に音を鳴らします" << endl << endl;
+    ostringstream oss;
+    oss << opt;
+    wcout << to_wstring(oss.str()) << endl;
+    wcout << "環境変数 PROCTIME にもオプションを指定できます" << endl << endl;
+    wcout << "wav ファイルは複数指定しても存在する最初のファイルのみを再生します" << endl << endl;
 }
 
 /// リスト表示
@@ -220,7 +239,10 @@ bool play(filesystem::path wavPath, const boost::program_options::variables_map&
     return true;
 }
 
-//------------------------------------------------------------
+//============================================================
+//
+// メイン
+//
 
 int wmain(int argc, wchar_t** argv)
 {
@@ -325,6 +347,6 @@ int wmain(int argc, wchar_t** argv)
     return result;
 }
 
-//------------------------------------------------------------
+//============================================================
 
 // end of <main.cpp>
