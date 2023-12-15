@@ -215,6 +215,13 @@ bool play(filesystem::path wavPath, const boost::program_options::variables_map&
     if (wavPath.is_relative())
         wavPath = GetWindowsMediaPath() / wavPath;
     if (!filesystem::exists(wavPath)) {
+        // .wav ‚ð’Ç‰Á‚µ‚ÄŽŽ‚·
+        filesystem::path wavPathExtAdded = wavPath;
+        wavPathExtAdded += L".wav";
+        if (filesystem::exists(wavPathExtAdded))
+            wavPath = wavPathExtAdded;
+    }
+    if (!filesystem::exists(wavPath)) {
         if (last)
             wcerr << L"ERROR: File " << wavPath << L" not found." << endl;
         else if (vm.count("verbose"))
