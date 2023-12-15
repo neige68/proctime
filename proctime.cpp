@@ -62,6 +62,24 @@ void BeginBackgroundProcessMode()
     }
 }
 
+/// 環境変数の値の取得
+string getenv_string(const string& name)
+{
+    vector<char> buf(128);
+    for (;;) {
+        size_t returnValue;
+        errno_t r = getenv_s(&returnValue, &buf.at(0), buf.size(), name.c_str());
+        cerr << "getenv_string|r=" << r << "|returnValue=" << returnValue << "\n";
+        if (r == 0) // OK
+            break;
+        else if (r == ERANGE)
+            buf.resize(returnValue);
+        else
+            throw runtime_error("getenv_s failure: code = " + to_string(r));
+    }
+    return string(&buf.at(0));
+}
+
 //------------------------------------------------------------
 
 /// バージョン出力
@@ -121,16 +139,14 @@ int GetTerminalCols()
         return ConsoleScreenBufferInfo.dwSize.X;
     else {
         // Emacs の shell ではエラー: ハンドルが無効です。
-#pragma warning(disable:4996) // getenv の結果は string にすぐコピーするので安全だと思う
-        if (string(getenv("TERM")) == "emacs") { // Windows の Emacs の shell では環境変数 TERM=emacs になっている
-            string cap = getenv("TERMCAP"); // "emacs:co#115:tc=unknown:" のように起動時の幅が記憶されている
-            vector<string> scap = split(cap, ':');
+        if (getenv_string("TERM") == "emacs") { // Windows の Emacs の shell では環境変数 TERM=emacs になっている
+            auto cap = getenv_string("TERMCAP"); // "emacs:co#115:tc=unknown:" のように起動時の幅が記憶されている
+            auto scap = split(cap, ':');
             auto iscap = find_if(scap.begin(), scap.end(),
                                  [] (const string& s) { return s.substr(0, 3) == "co#"; });
             if (iscap != scap.end())
                 return atoi(iscap->substr(3).c_str());
         }
-#pragma warning(default:4996)
     }
     return 80;
 }
@@ -227,9 +243,8 @@ int main(int argc, char** argv)
         opt.add(visible).add(hidden);
         //
         po::variables_map vm;
-#pragma warning(disable:4996)
-        if (const char* ev = getenv("PROCTIME")) {
-#pragma warning(default:4996)
+        auto ev = getenv_string("PROCTIME");
+        if (!ev.empty()) {
             auto args = po::split_winmain(ev);
             store(po::basic_command_line_parser<char>(args).options(opt).run(), vm);
         }
