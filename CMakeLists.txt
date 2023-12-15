@@ -42,7 +42,8 @@ set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /MAP")
 # ローカルインクルードファイルの場所を追加
 include_directories($ENV{LOCALINCLUDE})
 
-add_compile_definitions(_CRT_RAND_S)
+# UNICODE 使用
+add_compile_definitions(UNICODE;_UNICODE)
 
 add_executable(proctime proctime.cpp pch.cpp)
 # プリコンパイルヘッダを生成
