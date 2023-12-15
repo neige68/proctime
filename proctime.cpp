@@ -173,6 +173,7 @@ void help(const boost::program_options::options_description& opt)
     oss << opt;
     wcout << to_wstring(oss.str()) << endl;
     wcout << L"環境変数 PROCTIME にもオプションを指定できます" << endl << endl;
+    wcout << L"wav ファイルは絶対パス指定がなければ Windows Meida フォルダを使用します" << endl << endl;
     wcout << L"wav ファイルは複数指定しても存在する最初のファイルのみを再生します" << endl << endl;
 }
 
