@@ -12,8 +12,9 @@
 #include "pch.h"
 #pragma hdrstop
 
-#include <process.h>
-#include <shlobj_core.h>
+#include <Mmsystem.h>           // PlaySound
+#include <process.h>            // _wspawnvp
+#include <shlobj_core.h>        // SHGetKnownFolderPath
 
 #include <boost/program_options.hpp> // boost::program_options
 
@@ -171,8 +172,8 @@ void help(const boost::program_options::options_description& opt)
     ostringstream oss;
     oss << opt;
     wcout << to_wstring(oss.str()) << endl;
-    wcout << "環境変数 PROCTIME にもオプションを指定できます" << endl << endl;
-    wcout << "wav ファイルは複数指定しても存在する最初のファイルのみを再生します" << endl << endl;
+    wcout << L"環境変数 PROCTIME にもオプションを指定できます" << endl << endl;
+    wcout << L"wav ファイルは複数指定しても存在する最初のファイルのみを再生します" << endl << endl;
 }
 
 /// リスト表示
@@ -222,21 +223,12 @@ bool play(filesystem::path wavPath, const boost::program_options::variables_map&
     }
     if (vm.count("verbose"))
         wcout << L"INFO: Play File: " << wavPath << endl;
+    //
     int timeOut = vm["timeout"].as<int>();
-    wostringstream cmdLine;
-    cmdLine << L"mshta \"about:playing... "
-            << L"<OBJECT CLASSID='CLSID:22D6F312-B0F6-11D0-94AB-0080C74C7E95' WIDTH=1 HEIGHT=1>"
-            << L"  <PARAM NAME='src' VALUE='" << wavPath.wstring() << "'>"
-            << L"  <PARAM NAME='PlayCount' VALUE='1'>"
-            << L"  <PARAM NAME='AutoStart' VALUE='true'>"
-            << L"</OBJECT>"
-            << L"<SCRIPT>"
-            << L"  window.resizeTo(10,10);"
-            << L"  window.moveTo(-32000,-32000);"
-            << L"  setTimeout(function(){window.close()}," << timeOut << ");"
-            << L"</SCRIPT>\"";
-    _wsystem(cmdLine.str().c_str());
-    return true;
+    bool result = PlaySound(wavPath.wstring().c_str(), NULL, SND_FILENAME | SND_ASYNC);
+    Sleep(timeOut);
+    PlaySound(NULL, NULL, SND_FILENAME | SND_ASYNC);
+    return result;
 }
 
 //============================================================

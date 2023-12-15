@@ -46,7 +46,11 @@ include_directories($ENV{LOCALINCLUDE})
 add_compile_definitions(UNICODE;_UNICODE)
 
 add_executable(proctime proctime.cpp pch.cpp)
+
 # プリコンパイルヘッダを生成
 set_source_files_properties(pch.cpp PROPERTIES COMPILE_FLAGS "/Yc\"pch.h\"")
+
+# ライブラリ追加
+target_link_libraries(proctime winmm)
 
 # end of <CMakeLists.txt>
