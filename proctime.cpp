@@ -89,6 +89,7 @@ void help(const boost::program_options::options_description& opt)
     ostringstream oss;
     oss << opt;
     cout << oss.str() << endl;
+    cout << "環境変数 PROCTIME にもオプションを指定できます" << endl << endl;
     cout << "wav ファイルは複数指定しても存在する最初のファイルのみを再生します" << endl << endl;
 }
 
@@ -224,7 +225,14 @@ int main(int argc, char** argv)
             ;
         po::options_description opt("オプション");
         opt.add(visible).add(hidden);
+        //
         po::variables_map vm;
+#pragma warning(disable:4996)
+        if (const char* ev = getenv("PROCTIME")) {
+#pragma warning(default:4996)
+            auto args = po::split_winmain(ev);
+            store(po::basic_command_line_parser<char>(args).options(opt).run(), vm);
+        }
         store(po::basic_command_line_parser<char>(argc, argv).options(opt).positional(p).run(), vm);
         po::notify(vm);
         if (vm.count("help")) {
