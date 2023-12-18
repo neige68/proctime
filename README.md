@@ -12,6 +12,7 @@
   -T [ --timeout ] arg (=1000) wav タイムアウト[ミリ秒]
   -L [ --list ]                wav ファイルリスト表示
   -W [ --wav-file ] arg        wav ファイル
+  -E [ --error-wav-file ] arg  エラー時 wav ファイル
   -B [ --background-mode ]     リソーススケジュールの優先度を下げる
 
 環境変数 PROCTIME にもオプションを指定できます
@@ -23,4 +24,4 @@ wav ファイルは複数指定しても存在する最初のファイルのみ�
 
 例:
 
-    proctime -W "Windows Ding.wav" -W ding.wav build
+    proctime -W alarm10 -E alarm08 -- build

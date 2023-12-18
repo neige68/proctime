@@ -264,6 +264,7 @@ int wmain(int argc, wchar_t** argv)
             ("timeout,T", po::value<int>()->default_value(1000), "wav タイムアウト[ミリ秒]")
             ("list,L", "wav ファイルリスト表示")
             ("wav-file,W", po::wvalue<vector<wstring>>(), "wav ファイル")
+            ("error-wav-file,E", po::wvalue<vector<wstring>>(), "エラー時 wav ファイル")
             ("background-mode,B", "リソーススケジュールの優先度を下げる")
             ;
         po::options_description opt("オプション");
@@ -330,7 +331,15 @@ int wmain(int argc, wchar_t** argv)
         wprintf(L".\n");
         fflush(stdout);
         // 音を鳴らす
-        if (vm.count("wav-file")) {
+        if (result && vm.count("error-wav-file")) {
+            size_t count = vm["error-wav-file"].as<vector<wstring>>().size();
+            size_t i = 0;
+            for (const auto& str : vm["error-wav-file"].as<vector<wstring>>()) {
+                if (play(str, vm, ++i == count))
+                    break;
+            }
+        }
+        else if (vm.count("wav-file")) {
             size_t count = vm["wav-file"].as<vector<wstring>>().size();
             size_t i = 0;
             for (const auto& str : vm["wav-file"].as<vector<wstring>>()) {
