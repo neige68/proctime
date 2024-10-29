@@ -1,7 +1,7 @@
 // <main.cpp>
 //
 // Project proctime
-// Copyright (C) 2023 neige68
+// Copyright (C) 2023-2024 neige68
 //
 /// \file
 /// \brief main
@@ -14,11 +14,17 @@
 
 #include <Mmsystem.h>           // PlaySound
 #include <process.h>            // _wspawnvp
+#include <sapi.h>               // ISpVoice
+#pragma warning(disable: 4996)
 #include <shlobj_core.h>        // SHGetKnownFolderPath
+#include <sphelper.h>           // CSpDynamicString
+#pragma warning(default: 4996)
 
+#include <boost/noncopyable.hpp>     // boost::noncopyable
 #include <boost/program_options.hpp> // boost::program_options
 
 #include <filesystem>           // std::filesystem
+#include <sstream>              // std::ostringstream
 
 using namespace std;
 
@@ -103,6 +109,82 @@ wstring to_wstring(const string& str)
     return filesystem::path(str.c_str()).wstring();
 }
 
+/// string に変換
+string to_string(const wstring& str)
+{
+    return filesystem::path(str.c_str()).string();
+}
+
+//============================================================
+//
+// COM Initializer
+//
+
+class TComInitializer : boost::noncopyable {
+private:
+    TComInitializer() {
+        if (FAILED(CoInitializeEx(nullptr, COINIT_MULTITHREADED)))
+            throw runtime_error{"CoInitializeEx failed."};
+    }
+public:
+    static TComInitializer& Instance();
+    ~TComInitializer() {
+        CoUninitialize();
+    }
+};
+
+//static
+TComInitializer& TComInitializer::Instance()
+{
+    static TComInitializer theInstance;
+    return theInstance;
+}
+
+//============================================================
+//
+// class TSpVoice
+//
+
+class TSpVoice {
+public:
+    TSpVoice();
+    ~TSpVoice();
+    void Speak(LPCWSTR pwcs, DWORD dwFlags = SPF_DEFAULT, ULONG* pulStreamNumber = nullptr);
+    void GetVoice(ISpObjectToken** ppToken) {
+        if (FAILED(ptr_->GetVoice(ppToken)))
+            throw runtime_error{"ISpVoice::GetVoice failed."};
+    }
+    void SetVoice(ISpObjectToken* pToken) {
+        if (FAILED(ptr_->SetVoice(pToken)))
+            throw runtime_error{"ISpVoice::SetVoice failed."};
+    }
+private:
+    ISpVoice* ptr_;
+};
+
+//static
+TSpVoice::TSpVoice() : ptr_{nullptr}
+{
+    TComInitializer::Instance();
+    auto hr = CoCreateInstance(CLSID_SpVoice, nullptr, CLSCTX_INPROC_SERVER, IID_ISpVoice,
+                          reinterpret_cast<void**>(&ptr_));
+    if (FAILED(hr))
+        throw runtime_error{"CoCreateInstance CLSID_SpVoice failed."};
+}
+
+TSpVoice::~TSpVoice()
+{
+    if (ptr_)
+        ptr_->Release();
+}
+
+void TSpVoice::Speak(LPCWSTR pwcs, DWORD dwFlags, ULONG* pulStreamNumber)
+{
+    auto hr = ptr_->Speak(pwcs, dwFlags, pulStreamNumber);
+    if (FAILED(hr))
+        throw runtime_error("ISpVoice::Speak failed.");
+}
+
 //============================================================
 //
 // ユーティリティ
@@ -175,6 +257,7 @@ void help(const boost::program_options::options_description& opt)
     wcout << L"環境変数 PROCTIME にもオプションを指定できます" << endl << endl;
     wcout << L"wav ファイルは絶対パス指定がなければ Windows Meida フォルダを使用します" << endl << endl;
     wcout << L"wav ファイルは複数指定しても存在する最初のファイルのみを再生します" << endl << endl;
+    wcout << L"発声テキストは Windows 10 以降で有効です。wav ファイルの後に発声します。" << endl << endl;
 }
 
 /// リスト表示
@@ -239,6 +322,46 @@ bool play(filesystem::path wavPath, const boost::program_options::variables_map&
     return result;
 }
 
+/// ISpObjectToken の ID 文字列を返す
+wstring TokenId(ISpObjectToken* pToken)
+{
+    CSpDynamicString id;
+    pToken->GetId(&id);
+    return wstring{PWCHAR(id)};
+}
+
+// 発声
+void speak(wstring language, wstring reqAttribs, wstring optAttribs, wstring text,
+           const boost::program_options::variables_map& vm)
+{
+    try {
+        if (language == L"jp")
+            reqAttribs += L";Language=411";
+        else if (language == L"en")
+            reqAttribs += L";Language=409";
+        TComInitializer::Instance();
+        ISpObjectToken* pObjectToken = nullptr;
+        HRESULT hr = SpFindBestToken(SPCAT_VOICES, reqAttribs.c_str(), optAttribs.c_str(), &pObjectToken);
+        if (FAILED(hr)) {
+            auto em = ErrorMessage(hr, MAKELANGID(LANG_ENGLISH, SUBLANG_DEFAULT));
+            wostringstream oss;
+            oss << L"SpFindBestToken failed. "
+                << L"(CategoryId=SPCAT_VOICES,ReqAttribs=\"" << reqAttribs
+                << L"\",OptAttribs=\"" << optAttribs
+                << L"\",Result=" << hex << showbase << hr << L",Msg=\"" << em << L"\")";
+            throw runtime_error{to_string(oss.str())};
+        }
+        if (vm.count("verbose"))
+            wcout << L"INFO: Found Token: " << TokenId(pObjectToken) << endl;
+        TSpVoice spVoice;
+        spVoice.SetVoice(pObjectToken);
+        spVoice.Speak(text.c_str());
+    }
+    catch (const exception& x) {
+        wcout << L"ERROR: " << to_wstring(x.what()) << endl;
+    }
+}
+
 //============================================================
 //
 // メイン
@@ -257,7 +380,7 @@ int wmain(int argc, wchar_t** argv)
             ("command-args", po::wvalue<vector<wstring>>(), "command args")
             ;
         po::options_description visible("オプション");
-        visible.add_options()
+        visible.add_options() // 一文字オプション残り: ACDFIJKMNQUXYZ
             ("help,H", "ヘルプ")
             ("version,V", "バージョン表示")
             ("verbose,v", "冗長表示")
@@ -266,6 +389,11 @@ int wmain(int argc, wchar_t** argv)
             ("wav-file,W", po::wvalue<vector<wstring>>(), "wav ファイル")
             ("error-wav-file,E", po::wvalue<vector<wstring>>(), "エラー時 wav ファイル")
             ("background-mode,B", "リソーススケジュールの優先度を下げる")
+            ("speak-language,G", po::wvalue<wstring>()->default_value(L"jp", "jp"), "発声言語(jp,en のみ対応)")
+            ("speak-required-attribute,R", po::wvalue<wstring>()->default_value(L"", ""), "発声要求属性")
+            ("speak-option-attribute,O", po::wvalue<wstring>()->default_value(L"", ""), "発声オプション属性")
+            ("speak-text,S", po::wvalue<wstring>()->default_value(L"", ""), "発声テキスト")
+            ("speak-error-text,P", po::wvalue<wstring>()->default_value(L"", ""), "エラー時発声テキスト")
             ;
         po::options_description opt("オプション");
         opt.add(visible).add(hidden);
@@ -349,6 +477,15 @@ int wmain(int argc, wchar_t** argv)
         }
         else
             play(L"Ding.wav", vm, true);
+        // 発声
+        wstring text = vm["speak-text"].as<wstring>();
+        if (result) text = vm["speak-error-text"].as<wstring>();
+        if (!text.empty())
+            speak(vm["speak-language"].as<wstring>(),
+                  vm["speak-required-attribute"].as<wstring>(),
+                  vm["speak-option-attribute"].as<wstring>(),
+                  text,
+                  vm);
     }
     catch (const exception& x) {
         wcerr << L"ERROR: " << to_wstring(x.what()) << endl;
