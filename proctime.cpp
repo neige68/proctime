@@ -158,6 +158,10 @@ public:
         if (FAILED(ptr_->SetVoice(pToken)))
             throw runtime_error{"ISpVoice::SetVoice failed."};
     }
+    void SetVolume(USHORT volume) {
+        if (FAILED(ptr_->SetVolume(volume)))
+            throw runtime_error{"ISpVoice::SetVolume failed."};
+    }
 private:
     ISpVoice* ptr_;
 };
@@ -355,6 +359,11 @@ void speak(wstring language, wstring reqAttribs, wstring optAttribs, wstring tex
             wcout << L"INFO: Found Token: " << TokenId(pObjectToken) << endl;
         TSpVoice spVoice;
         spVoice.SetVoice(pObjectToken);
+        USHORT volume = 101;
+        if (vm.count("speak-volume"))
+            volume = static_cast<USHORT>(vm["speak-volume"].as<int>());;
+        if (volume < 101)
+            spVoice.SetVolume(volume);
         spVoice.Speak(text.c_str());
     }
     catch (const exception& x) {
@@ -380,7 +389,7 @@ int wmain(int argc, wchar_t** argv)
             ("command-args", po::wvalue<vector<wstring>>(), "command args")
             ;
         po::options_description visible("オプション");
-        visible.add_options() // 一文字オプション残り: ACDFIJKMNQUXYZ
+        visible.add_options() // 一文字オプション残り: ACDFIJKNQUXYZ
             ("help,H", "ヘルプ")
             ("version,V", "バージョン表示")
             ("verbose,v", "冗長表示")
@@ -394,6 +403,7 @@ int wmain(int argc, wchar_t** argv)
             ("speak-option-attribute,O", po::wvalue<wstring>()->default_value(L"", ""), "発声オプション属性")
             ("speak-text,S", po::wvalue<wstring>()->default_value(L"", ""), "発声テキスト")
             ("speak-error-text,P", po::wvalue<wstring>()->default_value(L"", ""), "エラー時発声テキスト")
+            ("speak-volume,M", po::value<int>()->default_value(100), "発声ボリューム(0..100)")
             ;
         po::options_description opt("オプション");
         opt.add(visible).add(hidden);

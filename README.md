@@ -19,6 +19,7 @@
   -O [ --speak-option-attribute ] arg   発声オプション属性
   -S [ --speak-text ] arg               発声テキスト
   -P [ --speak-error-text ] arg         エラー時発声テキスト
+  -M [ --speak-volume ] arg (=100)      発声ボリューム(0..100)
 
 環境変数 PROCTIME にもオプションを指定できます
 
