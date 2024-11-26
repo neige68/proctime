@@ -12,10 +12,9 @@
 #define pch_h
 
 #define STRICT
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
 #include <windows.h>
-
-// common
-#include <bits/stdc++.h>
 
 #endif // pch_h
 

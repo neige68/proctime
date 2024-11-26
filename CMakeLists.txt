@@ -27,8 +27,10 @@ link_directories(${Boost_LIBRARY_DIRS})
 
 #------------------------------------------------------------
 
-# C++17 使用
-set(CMAKE_CXX_STANDARD "17")
+# C++20 使用
+set(CMAKE_CXX_STANDARD "20")
+
+add_subdirectory(neige1)
 
 # /MP: マルチプロセス
 # /W4: 警告レベルを4とする
@@ -40,7 +42,7 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /MAP")
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /MAP")
 
 # ローカルインクルードファイルの場所を追加
-include_directories($ENV{LOCALINCLUDE})
+include_directories($ENV{LOCALINCLUDE} .)
 
 # UNICODE 使用
 add_compile_definitions(UNICODE;_UNICODE)
@@ -51,6 +53,9 @@ add_executable(proctime proctime.cpp pch.cpp)
 set_source_files_properties(pch.cpp PROPERTIES COMPILE_FLAGS "/Yc\"pch.h\"")
 
 # ライブラリ追加
-target_link_libraries(proctime winmm)
+target_link_libraries(proctime neige1 winmm)
+
+# テスト対応
+enable_testing()
 
 # end of <CMakeLists.txt>

@@ -12,21 +12,26 @@
 #include "pch.h"
 #pragma hdrstop
 
+#include "neige1/string.h"      // neige1::to_wstring
+#include "neige1/term.h"        // neige1::GetTerminalCols
+#include "neige1/winex.h"       // neige1::ErrorMessage
+
 #include <Mmsystem.h>           // PlaySound
 #include <process.h>            // _wspawnvp
 #include <sapi.h>               // ISpVoice
 #pragma warning(disable: 4996)
-#include <shlobj_core.h>        // SHGetKnownFolderPath
 #include <sphelper.h>           // CSpDynamicString
 #pragma warning(default: 4996)
 
-#include <boost/noncopyable.hpp>     // boost::noncopyable
 #include <boost/program_options.hpp> // boost::program_options
 
 #include <filesystem>           // std::filesystem
+#include <iostream>             // std::wcerr
 #include <sstream>              // std::ostringstream
 
 using namespace std;
+using namespace neige1;
+using namespace neige1::winex;
 
 //============================================================
 //
@@ -41,31 +46,6 @@ const wchar_t* str_version = L"0.00";
 // Win32 API の拡張
 //
 
-/// 既知のフォルダーの完全パスを取得
-filesystem::path GetKnownFolderPath(REFKNOWNFOLDERID rfid, DWORD dwFlags = 0, HANDLE hToken = 0)
-{
-    PWSTR pszPath = 0;
-    if (SHGetKnownFolderPath(rfid, dwFlags, hToken, &pszPath) != S_OK) {
-        ::CoTaskMemFree(pszPath);
-        throw runtime_error("SHGetKnownFolderPath failure.");
-    }
-    wstring result{pszPath};
-    ::CoTaskMemFree(pszPath);
-    return result;
-}
-
-/// GetLastError の値を対応するメッセージに変換する
-wstring ErrorMessage(DWORD id, DWORD dwLanguageId = MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT))
-{
-    wchar_t* buf = 0;
-    FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM
-                  | FORMAT_MESSAGE_IGNORE_INSERTS | FORMAT_MESSAGE_MAX_WIDTH_MASK, 
-                  0, id, dwLanguageId, (LPTSTR)&buf, 1, 0);
-    wstring result(buf ? buf : L"");
-    LocalFree(buf);
-    return result;
-}
-
 /// バックグラウンド処理モードを開始
 void BeginBackgroundProcessMode()
 {
@@ -79,65 +59,6 @@ void BeginBackgroundProcessMode()
 filesystem::path GetWindowsMediaPath()
 {
     return GetKnownFolderPath(FOLDERID_Windows) / "Media";
-}
-
-//============================================================
-//
-// C/C++ Library の拡張
-//
-
-/// 環境変数の値の取得
-wstring getenv_wstring(const wstring& name)
-{
-    vector<wchar_t> buf(128);
-    for (;;) {
-        size_t returnValue;
-        errno_t r = _wgetenv_s(&returnValue, &buf.at(0), buf.size(), name.c_str());
-        if (r == 0) // OK
-            break;
-        else if (r == ERANGE)
-            buf.resize(returnValue);
-        else
-            throw runtime_error("getenv_s failure: code = " + to_string(r));
-    }
-    return wstring(&buf.at(0));
-}
-
-/// wstring に変換
-wstring to_wstring(const string& str)
-{
-    return filesystem::path(str.c_str()).wstring();
-}
-
-/// string に変換
-string to_string(const wstring& str)
-{
-    return filesystem::path(str.c_str()).string();
-}
-
-//============================================================
-//
-// COM Initializer
-//
-
-class TComInitializer : boost::noncopyable {
-private:
-    TComInitializer() {
-        if (FAILED(CoInitializeEx(nullptr, COINIT_MULTITHREADED)))
-            throw runtime_error{"CoInitializeEx failed."};
-    }
-public:
-    static TComInitializer& Instance();
-    ~TComInitializer() {
-        CoUninitialize();
-    }
-};
-
-//static
-TComInitializer& TComInitializer::Instance()
-{
-    static TComInitializer theInstance;
-    return theInstance;
 }
 
 //============================================================
@@ -169,7 +90,7 @@ private:
 //static
 TSpVoice::TSpVoice() : ptr_{nullptr}
 {
-    TComInitializer::Instance();
+    ComInitializer::Instance();
     auto hr = CoCreateInstance(CLSID_SpVoice, nullptr, CLSCTX_INPROC_SERVER, IID_ISpVoice,
                           reinterpret_cast<void**>(&ptr_));
     if (FAILED(hr))
@@ -187,45 +108,6 @@ void TSpVoice::Speak(LPCWSTR pwcs, DWORD dwFlags, ULONG* pulStreamNumber)
     auto hr = ptr_->Speak(pwcs, dwFlags, pulStreamNumber);
     if (FAILED(hr))
         throw runtime_error("ISpVoice::Speak failed.");
-}
-
-//============================================================
-//
-// ユーティリティ
-//
-
-/// 文字列を区切り文字 c で分解
-vector<wstring> split(const wstring& str, wchar_t c)
-{
-    vector<wstring> result;
-    size_t start = 0;
-    for (;;) {
-        size_t pos = str.find(c, start);
-        if (pos == string::npos) break;
-        result.push_back(str.substr(start, pos - 1));
-        start = pos + 1;
-    }
-    return result;
-}
-
-/// ターミナルの桁数
-int GetTerminalCols()
-{
-    CONSOLE_SCREEN_BUFFER_INFO ConsoleScreenBufferInfo;
-    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &ConsoleScreenBufferInfo))
-        return ConsoleScreenBufferInfo.dwSize.X;
-    else {
-        // Emacs の shell ではエラー: ハンドルが無効です。
-        if (getenv_wstring(L"TERM") == L"emacs") { // Windows の Emacs の shell では環境変数 TERM=emacs になっている
-            auto cap = getenv_wstring(L"TERMCAP"); // "emacs:co#115:tc=unknown:" のように起動時の幅が記憶されている
-            auto scap = split(cap, L':');
-            auto iscap = find_if(scap.begin(), scap.end(),
-                                 [] (const wstring& s) { return s.substr(0, 3) == L"co#"; });
-            if (iscap != scap.end())
-                return _wtoi(iscap->substr(3).c_str());
-        }
-    }
-    return 80;
 }
 
 //============================================================
@@ -343,7 +225,7 @@ void speak(wstring language, wstring reqAttribs, wstring optAttribs, wstring tex
             reqAttribs += L";Language=411";
         else if (language == L"en")
             reqAttribs += L";Language=409";
-        TComInitializer::Instance();
+        ComInitializer::Instance();
         ISpObjectToken* pObjectToken = nullptr;
         HRESULT hr = SpFindBestToken(SPCAT_VOICES, reqAttribs.c_str(), optAttribs.c_str(), &pObjectToken);
         if (FAILED(hr)) {
