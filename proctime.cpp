@@ -25,9 +25,11 @@
 
 #include <boost/program_options.hpp> // boost::program_options
 
+#include <cstdio>               // std::fflush
 #include <filesystem>           // std::filesystem
 #include <iostream>             // std::wcerr
 #include <sstream>              // std::ostringstream
+#include <vector>               // std::vector
 
 using namespace std;
 using namespace neige1;
@@ -50,7 +52,8 @@ const wchar_t* str_version = L"0.00";
 void BeginBackgroundProcessMode()
 {
     if (!SetPriorityClass(GetCurrentProcess(), PROCESS_MODE_BACKGROUND_BEGIN)) { // error
-        wcerr << L"ERROR: SetPriorityClass(PROCESS_MODE_BACKGROUND_BEGIN): " << ErrorMessage(GetLastError()) << endl;
+        wcerr << L"ERROR: SetPriorityClass(PROCESS_MODE_BACKGROUND_BEGIN): "
+              << ErrorMessage(GetLastError()) << endl;
         wcerr << L"INFO: ‘±s‚µ‚Ü‚·" << endl;
     }
 }
@@ -121,7 +124,7 @@ void version()
     wcout << L"proctime";
 #if defined(_WIN64)
     wcout << L" x64";
-#else        
+#else
     wcout << L" x86";
 #endif
 #if !defined(NDEBUG)
@@ -343,7 +346,8 @@ int wmain(int argc, wchar_t** argv)
         DWORD t = (t1 - t0);
         wprintf(L"proctime: %d.%03d seconds", t/1000, t%1000);
         if (t >= 1000 * 60 * 60 * 24)
-            wprintf(L" (%dd %dh %02dm %02ds %03d)", t/1000/60/60/24, t/1000/60/60%24, t/1000/60%60, t/1000%60, t%1000);
+            wprintf(L" (%dd %dh %02dm %02ds %03d)",
+                    t/1000/60/60/24, t/1000/60/60%24, t/1000/60%60, t/1000%60, t%1000);
         else if (t >= 1000 * 60 * 60)
             wprintf(L" (%dh %02dm %02ds %03d)", t/1000/60/60, t/1000/60%60, t/1000%60, t%1000);
         else if (t >= 1000 * 60)

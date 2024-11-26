@@ -3,7 +3,7 @@
 // Project proctime
 // Copyright (C) 2023 neige68
 //
-// Note: Precompile 
+// Note: Precompile
 //
 // Compiler: VC14.2
 //
