@@ -34,14 +34,10 @@ if not exist build mkdir build
 pushd build
 if not exist ALL_BUILD.vcxproj set @exec_cmake=t
 if not "%@exec_cmake%"=="" cmake %CMAKEOPT% ..
-for /R %%p in (test_*.vcxproj) do (
-    %@ionice% msbuild %@msbuild_opt% %%p %@m% /p:Configuration=Debug
-    if errorlevel 1 goto err
-)
-ctest -C debug -j %NUMBER_OF_PROCESSORS% --output-on-failure --timeout 5
-if errorlevel 1 goto err
 msbuild ALL_BUILD.vcxproj /p:Configuration=Debug /m
 echo INFO: build.bat: msbuild Debug Done.
+if errorlevel 1 goto err
+ctest -C debug -j %NUMBER_OF_PROCESSORS% --output-on-failure --timeout 5
 if errorlevel 1 goto err
 msbuild ALL_BUILD.vcxproj /p:Configuration=Release /m
 echo INFO: build.bat: msbuild Release Done.
